@@ -3,7 +3,6 @@ import Scene3D from '../components/Scene3D';
 import ViewerToolbar from '../components/ViewerToolbar';
 import ViewerSidebar from '../components/ViewerSidebar';
 import MiniMap from '../components/MiniMap';
-import MeasureTool from '../components/MeasureTool';
 
 const VIEW_MODES = {
   DOLLHOUSE: 'dollhouse',
@@ -12,22 +11,23 @@ const VIEW_MODES = {
   ORBIT: 'orbit',
 };
 
-export default function ViewerPage({ navigate, project }) {
+export default function ViewerPage({ navigate, project, photos }) {
   const [viewMode, setViewMode] = useState(VIEW_MODES.DOLLHOUSE);
   const [showSidebar, setShowSidebar] = useState(false);
-  const [showMeasure, setShowMeasure] = useState(false);
   const [showMiniMap, setShowMiniMap] = useState(true);
-  const [cameraPosition, setCameraPosition] = useState({ x: 0, y: 5, z: 10 });
-  const [selectedPoint, setSelectedPoint] = useState(null);
-  const [annotations, setAnnotations] = useState([
-    { id: 1, x: 2, y: 1, z: 0, label: '입구', desc: '메인 출입구' },
-    { id: 2, x: -3, y: 1, z: 2, label: '회의실', desc: '4인용 회의실' },
-    { id: 3, x: 1, y: 1, z: -3, label: '작업 공간', desc: '개발팀 좌석' },
-  ]);
+  const [cameraPosition, setCameraPosition] = useState({ x: 0, y: 8, z: 14 });
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
 
   const handleCameraChange = useCallback((pos) => {
     setCameraPosition(pos);
   }, []);
+
+  const handleSelectPhoto = useCallback((index) => {
+    setSelectedPhoto(index);
+    setShowSidebar(true);
+  }, []);
+
+  const hasPhotos = photos && photos.length > 0;
 
   return (
     <div style={styles.viewer}>
@@ -41,7 +41,9 @@ export default function ViewerPage({ navigate, project }) {
           </button>
           <div style={styles.projectInfo}>
             <h2 style={styles.projectName}>{project?.name || '데모 사무실'}</h2>
-            <span style={styles.projectMeta}>3D 가상 투어</span>
+            <span style={styles.projectMeta}>
+              {hasPhotos ? `${photos.length}장 사진 기반 3D 뷰` : '데모 3D 가상 투어'}
+            </span>
           </div>
         </div>
 
@@ -69,18 +71,6 @@ export default function ViewerPage({ navigate, project }) {
 
         <div style={styles.topRight}>
           <button
-            style={{
-              ...styles.toolBtn,
-              ...(showMeasure ? styles.toolBtnActive : {}),
-            }}
-            onClick={() => setShowMeasure(!showMeasure)}
-            title="거리 측정"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
-            </svg>
-          </button>
-          <button
             style={styles.toolBtn}
             onClick={() => setShowMiniMap(!showMiniMap)}
             title="미니맵"
@@ -91,7 +81,10 @@ export default function ViewerPage({ navigate, project }) {
             </svg>
           </button>
           <button
-            style={styles.toolBtn}
+            style={{
+              ...styles.toolBtn,
+              ...(showSidebar ? { background: 'rgba(37, 99, 235, 0.2)', color: '#60a5fa' } : {}),
+            }}
             onClick={() => setShowSidebar(!showSidebar)}
             title="정보 패널"
           >
@@ -113,33 +106,46 @@ export default function ViewerPage({ navigate, project }) {
         <Scene3D
           viewMode={viewMode}
           onCameraChange={handleCameraChange}
-          annotations={annotations}
-          selectedPoint={selectedPoint}
-          onSelectPoint={setSelectedPoint}
-          showMeasure={showMeasure}
+          photos={photos}
+          onSelectPhoto={handleSelectPhoto}
+          selectedPhoto={selectedPhoto}
         />
       </div>
+
+      {/* Photo strip at bottom (when photos exist) */}
+      {hasPhotos && (
+        <div style={styles.photoStrip}>
+          <div style={styles.photoStripInner}>
+            {photos.map((p, i) => (
+              <img
+                key={p.id || i}
+                src={p.url}
+                alt={p.name}
+                style={{
+                  ...styles.stripThumb,
+                  ...(selectedPhoto === i ? styles.stripThumbActive : {}),
+                }}
+                onClick={() => handleSelectPhoto(i)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Mini Map */}
       {showMiniMap && (
         <div style={styles.miniMapContainer}>
-          <MiniMap cameraPosition={cameraPosition} viewMode={viewMode} />
-        </div>
-      )}
-
-      {/* Measure Tool Overlay */}
-      {showMeasure && (
-        <div style={styles.measureOverlay}>
-          <MeasureTool />
+          <MiniMap cameraPosition={cameraPosition} viewMode={viewMode} photos={photos} />
         </div>
       )}
 
       {/* Sidebar */}
       {showSidebar && (
         <ViewerSidebar
-          annotations={annotations}
+          photos={photos}
+          selectedPhoto={selectedPhoto}
           onClose={() => setShowSidebar(false)}
-          onSelectAnnotation={(a) => setSelectedPoint(a)}
+          onSelectPhoto={handleSelectPhoto}
         />
       )}
 
@@ -153,10 +159,9 @@ const styles = {
   viewer: {
     position: 'fixed',
     inset: 0,
-    background: '#0a0f1a',
+    background: '#111827',
     overflow: 'hidden',
   },
-  // Top Bar
   topBar: {
     position: 'absolute',
     top: 0,
@@ -186,7 +191,6 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    transition: 'all 0.2s',
   },
   projectInfo: {},
   projectName: {
@@ -216,6 +220,8 @@ const styles = {
     color: '#94a3b8',
     background: 'none',
     transition: 'all 0.2s',
+    border: 'none',
+    cursor: 'pointer',
   },
   viewTabActive: {
     color: '#f1f5f9',
@@ -236,11 +242,8 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    transition: 'all 0.2s',
-  },
-  toolBtnActive: {
-    background: 'rgba(37, 99, 235, 0.2)',
-    color: '#60a5fa',
+    border: 'none',
+    cursor: 'pointer',
   },
   shareBtn: {
     display: 'flex',
@@ -253,8 +256,9 @@ const styles = {
     fontSize: 13,
     fontWeight: 600,
     marginLeft: 4,
+    border: 'none',
+    cursor: 'pointer',
   },
-  // Canvas
   canvas: {
     position: 'absolute',
     top: 56,
@@ -262,17 +266,46 @@ const styles = {
     right: 0,
     bottom: 0,
   },
-  // Mini Map
+  photoStrip: {
+    position: 'absolute',
+    bottom: 52,
+    left: 0,
+    right: 0,
+    height: 72,
+    background: 'rgba(15, 23, 42, 0.85)',
+    backdropFilter: 'blur(10px)',
+    borderTop: '1px solid rgba(71, 85, 105, 0.3)',
+    zIndex: 90,
+    display: 'flex',
+    alignItems: 'center',
+    padding: '0 16px',
+    overflow: 'hidden',
+  },
+  photoStripInner: {
+    display: 'flex',
+    gap: 6,
+    overflowX: 'auto',
+    padding: '8px 0',
+  },
+  stripThumb: {
+    width: 56,
+    height: 56,
+    objectFit: 'cover',
+    borderRadius: 6,
+    cursor: 'pointer',
+    border: '2px solid transparent',
+    opacity: 0.7,
+    transition: 'all 0.2s',
+    flexShrink: 0,
+  },
+  stripThumbActive: {
+    border: '2px solid #2563eb',
+    opacity: 1,
+    boxShadow: '0 0 12px rgba(37, 99, 235, 0.4)',
+  },
   miniMapContainer: {
     position: 'absolute',
-    bottom: 80,
-    left: 16,
-    zIndex: 50,
-  },
-  // Measure
-  measureOverlay: {
-    position: 'absolute',
-    top: 70,
+    bottom: 140,
     left: 16,
     zIndex: 50,
   },

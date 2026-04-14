@@ -35,7 +35,7 @@ export default function App() {
       case PAGES.PROCESSING:
         return <ProcessingPage navigate={navigate} photos={uploadedPhotos} />;
       case PAGES.VIEWER:
-        return <ViewerPage navigate={navigate} project={projectData} />;
+        return <ViewerPage navigate={navigate} project={projectData} photos={uploadedPhotos} />;
       case PAGES.PROJECTS:
         return <ProjectsPage navigate={navigate} />;
       default:
